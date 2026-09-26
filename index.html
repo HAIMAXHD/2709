@@ -1,339 +1,1417 @@
 <!DOCTYPE html>
+
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Agribank Scan v11.0 - Fixed OCR</title>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <meta charset="UTF-8">
 
-  <style>
-    body { background-color: #f1f5f9; font-family: ui-sans-serif, system-ui; }
-    .camera-box { position: relative; width: 100%; height: 320px; background: #000; overflow: hidden; }
-    #video { width: 100%; height: 100%; object-fit: cover; }
-    
+```
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+>
+
+<title>Agribank Scan v12.0 - Optimized OCR</title>
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- SQLite -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+
+<!-- Fuse -->
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+<!-- Tesseract -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+<style>
+    body {
+        background-color: #f1f5f9;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .camera-box {
+        position: relative;
+        width: 100%;
+        height: 360px;
+        background: #000;
+        overflow: hidden;
+    }
+
+    #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
     .panoramic-overlay {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 92%; height: 90px;
-      border: 2px solid #10b981;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
-      pointer-events: none;
-    }
-    .scan-line {
-      position: absolute; width: 100%; height: 2px;
-      background: rgba(16, 185, 129, 0.8);
-      box-shadow: 0 0 10px #10b981;
-      animation: moveLine 1.5s infinite linear;
-    }
-    @keyframes moveLine { 0% { top: 0; } 100% { top: 100%; } }
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
 
-    .result-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 6px solid #cbd5e1; transition: all 0.3s; }
-    .result-card.best-match { border-left-color: #059669; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    
-    .ans-item { padding: 10px; border-radius: 8px; margin-top: 6px; font-size: 0.95rem; line-height: 1.4; border: 1px solid transparent; }
-    .is-true { background: #ecfdf5; color: #065f46; font-weight: 700; border-color: #34d399; }
-    
-    .is-false { color: #64748b; opacity: 0.8; }
-    .diff-wrong { color: #dc2626; text-decoration: line-through; font-weight: 600; }
-    
-    .loading-state { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 60; align-items: center; justify-content: center; color: white; }
-  </style>
+        width: 92%;
+        height: 115px;
+
+        border: 2px solid #10b981;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.60);
+
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+    .scan-line {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 2px;
+
+        background: rgba(16, 185, 129, 0.9);
+        box-shadow: 0 0 10px #10b981;
+
+        animation: moveLine 1.5s infinite linear;
+    }
+
+    @keyframes moveLine {
+        0% {
+            top: 0;
+        }
+
+        100% {
+            top: 100%;
+        }
+    }
+
+    .result-card {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+
+        border-left: 6px solid #cbd5e1;
+
+        transition: all 0.2s ease;
+    }
+
+    .result-card.best-match {
+        border-left-color: #059669;
+
+        transform: translateY(-2px);
+
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .ans-item {
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 6px;
+
+        font-size: 0.95rem;
+        line-height: 1.4;
+
+        border: 1px solid transparent;
+    }
+
+    .is-true {
+        background: #ecfdf5;
+        color: #065f46;
+        font-weight: 700;
+        border-color: #34d399;
+    }
+
+    .is-false {
+        color: #64748b;
+        opacity: 0.8;
+    }
+
+    .diff-wrong {
+        color: #dc2626;
+        text-decoration: line-through;
+        font-weight: 600;
+    }
+
+    .loading-state {
+        display: none;
+
+        position: absolute;
+        inset: 0;
+
+        background: rgba(0, 0, 0, 0.80);
+
+        z-index: 60;
+
+        align-items: center;
+        justify-content: center;
+
+        color: white;
+    }
+
+    .disabled-button {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+</style>
+```
+
 </head>
+
 <body class="pb-10">
 
-  <div class="camera-box">
-    <video id="video" autoplay playsinline muted></video>
-    <div class="panoramic-overlay">
-        <div class="scan-line"></div>
-        <div class="absolute -top-6 left-0 text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-            Vùng quét ưu tiên (ĐƯA CAMERA VÀO PHẦN CÂU HỎI)
+<!-- CAMERA -->
+
+<div class="camera-box">
+
+```
+<video
+    id="video"
+    autoplay
+    playsinline
+    muted>
+</video>
+
+<!-- OCR REGION -->
+<div class="panoramic-overlay">
+
+    <div class="scan-line"></div>
+
+    <div
+        class="absolute -top-6 left-0 text-[10px]
+               text-emerald-400 font-bold
+               uppercase tracking-widest">
+        ĐƯA PHẦN CÂU HỎI VÀO KHUNG QUÉT
+    </div>
+
+</div>
+
+<!-- ACTION -->
+<div class="absolute bottom-4 w-full px-6">
+
+    <button
+        id="btnAction"
+        onclick="smartCapture()"
+        class="bg-emerald-600 hover:bg-emerald-700
+               text-white w-full py-4 rounded-2xl
+               font-black text-xl shadow-2xl
+               active:scale-95 transition-all">
+
+        📸 QUÉT CÂU HỎI
+
+    </button>
+
+</div>
+
+<!-- LOADER -->
+<div id="loader" class="loading-state">
+
+    <div class="text-center px-4">
+
+        <div
+            class="inline-block animate-spin
+                   rounded-full h-8 w-8
+                   border-4 border-emerald-500
+                   border-t-transparent mb-3">
         </div>
-    </div>
-    
-    <div class="absolute bottom-4 w-full px-6 flex flex-col gap-3">
-        <button onclick="smartCapture()" id="btnAction" class="bg-emerald-600 hover:bg-emerald-700 text-white w-full py-4 rounded-2xl font-black text-xl shadow-2xl active:scale-95 transition-all">
-            📸 QUÉT CÂU HỎI
-        </button>
-    </div>
 
-    <div id="loader" class="loading-state">
-        <div class="text-center px-4">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent mb-2"></div>
-            <div id="loaderText" class="text-sm font-bold tracking-tighter">ĐANG ĐỌC VÀ TÌM KIẾM...</div>
+        <div
+            id="loaderText"
+            class="text-sm font-bold">
+            ĐANG ĐỌC...
         </div>
-    </div>
-  </div>
 
-  <div class="p-4">
-    <div class="mb-4 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-        <div class="flex justify-between items-center mb-1">
-            <label class="text-[10px] font-black text-gray-400 uppercase">Văn bản nhận diện được:</label>
-            <span id="matchStatus" class="text-[10px] font-bold"></span>
-        </div>
-        <input id="ocrResult" type="text" onkeyup="manualSearch()" 
-               class="w-full bg-transparent border-none p-0 text-gray-700 font-medium focus:ring-0 text-sm italic" placeholder="Chưa có dữ liệu quét...">
     </div>
 
-    <div class="flex items-center gap-2 mb-6">
-        <input type="file" id="upload" accept=".db,.sqlite" class="hidden" onchange="initData(event)">
-        <label for="upload" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md cursor-pointer">📂 NẠP BỘ ĐỀ DB</label>
-        <div id="count" class="text-xs font-mono text-slate-400">OFFLINE</div>
-        <div id="ocrStatus" onclick="initOCRWorker()" class="text-[10px] font-bold text-amber-500 ml-auto cursor-pointer">⏳ Đang khởi tạo OCR...</div>
+</div>
+```
+
+</div>
+
+<!-- MAIN -->
+
+<div class="p-4">
+
+```
+<!-- OCR RESULT -->
+<div
+    class="mb-4 bg-white p-3 rounded-xl
+           border border-gray-200 shadow-sm">
+
+    <div class="flex justify-between items-center mb-1">
+
+        <label
+            class="text-[10px] font-black text-gray-400 uppercase">
+            Văn bản nhận diện:
+        </label>
+
+        <span
+            id="matchStatus"
+            class="text-[10px] font-bold">
+        </span>
+
     </div>
 
-    <div id="displayArea" class="space-y-4">
-        <div class="text-center py-12 text-gray-300">
-            <p class="text-3xl mb-2">🔍</p>
-            <p class="text-sm">Hãy nạp file và đưa khung quét vào dòng chữ câu hỏi</p>
-        </div>
-    </div>
-  </div>
+    <input
+        id="ocrResult"
+        type="text"
+        autocomplete="off"
+        oninput="manualSearch()"
 
-  <canvas id="procCanvas" class="hidden"></canvas>
+        class="w-full bg-transparent
+               border-none p-0 text-gray-700
+               font-medium focus:ring-0
+               text-sm italic"
+
+        placeholder="Chưa có dữ liệu quét..."
+    >
+
+</div>
+
+
+<!-- CONTROLS -->
+<div class="flex items-center gap-2 mb-6">
+
+    <input
+        type="file"
+        id="upload"
+        accept=".db,.sqlite"
+        class="hidden"
+        onchange="initData(event)"
+    >
+
+    <label
+        for="upload"
+        class="bg-slate-800 text-white
+               px-5 py-2.5 rounded-xl
+               text-xs font-bold shadow-md
+               cursor-pointer">
+
+        📂 NẠP BỘ ĐỀ DB
+
+    </label>
+
+    <div
+        id="count"
+        class="text-xs font-mono text-slate-400">
+
+        CHƯA CÓ DB
+
+    </div>
+
+    <div
+        id="ocrStatus"
+        class="text-[10px] font-bold
+               text-amber-500 ml-auto">
+
+        ⏳ ĐANG KHỞI TẠO OCR...
+
+    </div>
+
+</div>
+
+
+<!-- RESULTS -->
+<div
+    id="displayArea"
+    class="space-y-4">
+
+    <div
+        class="text-center py-12
+               text-gray-300">
+
+        <p class="text-3xl mb-2">
+            🔍
+        </p>
+
+        <p class="text-sm">
+            Hãy nạp file và đưa khung quét
+            vào câu hỏi
+        </p>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<canvas
+ id="procCanvas"
+ class="hidden"> </canvas>
 
 <script>
+
+"use strict";
+
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
 let store = [];
-let searchEngine;
-let stream;
+let searchEngine = null;
+
+let stream = null;
 let ocrWorker = null;
 
-window.onload = async () => {
-    // 1. Khởi tạo Camera
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment", width: { ideal: 1920 } } 
-        });
-        document.getElementById('video').srcObject = stream;
-    } catch (e) { alert("Lỗi camera: Hãy đảm bảo bạn dùng HTTPS và cấp quyền máy ảnh."); }
+let isOCRBusy = false;
+let isOCRReady = false;
 
-    // 2. Khởi tạo OCR Worker
-    await initOCRWorker();
+let lastOCRText = "";
 
-    // 3. Tự động tải DB nếu có
-    try {
-        const response = await fetch('data 26 09 2026.db');
-        if (response.ok) {
-            const arrayBuffer = await response.arrayBuffer();
-            await loadSqlDb(arrayBuffer);
-        }
-    } catch (err) {
-        console.log("Chưa tự động tải được DB:", err);
-    }
-};
 
-async function initOCRWorker() {
-    const statusEl = document.getElementById('ocrStatus');
-    statusEl.innerText = "⏳ Đang kết nối OCR...";
-    statusEl.className = "text-[10px] font-bold text-amber-500 ml-auto";
-    
-    try {
-        if (ocrWorker) await ocrWorker.terminate();
-        ocrWorker = await Tesseract.createWorker('vie');
-        await ocrWorker.setParameters({
-            tessedit_pageseg_mode: '6' // PSM.SINGLE_BLOCK
-        });
-        statusEl.innerText = "⚡ OCR SẴN SÀNG";
-        statusEl.className = "text-[10px] font-bold text-emerald-600 ml-auto";
-    } catch (e) {
-        console.error("Khởi tạo OCR thất bại:", e);
-        statusEl.innerText = "❌ LỖI OCR (Bấm thử lại)";
-        statusEl.className = "text-[10px] font-bold text-red-500 ml-auto cursor-pointer";
-    }
+/* =========================================================
+   DOM CACHE
+========================================================= */
+
+const $ = id => document.getElementById(id);
+
+const video = $("video");
+const canvas = $("procCanvas");
+
+const btnAction = $("btnAction");
+const loader = $("loader");
+const loaderText = $("loaderText");
+
+const ocrResult = $("ocrResult");
+const displayArea = $("displayArea");
+
+const matchStatus = $("matchStatus");
+const countEl = $("count");
+const ocrStatus = $("ocrStatus");
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+window.addEventListener("load", initApp);
+
+
+async function initApp() {
+
+    await Promise.allSettled([
+        initCamera(),
+        initOCRWorker()
+    ]);
+
+    await autoLoadDatabase();
 }
 
-async function loadSqlDb(arrayBuffer) {
-    try {
-        const SQL = await initSqlJs({
-            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-        });
-        const db = new SQL.Database(new Uint8Array(arrayBuffer));
-        
-        const res = db.exec("SELECT col_1, col_2, col_3, col_4, col_5, col_6, col_7 FROM data_table");
-        
-        if (res.length > 0 && res[0].values) {
-            const rows = res[0].values;
-            store = rows.filter(r => r[0] && !isNaN(r[0])).map(r => ({
-                id: r[0], 
-                title: r[1],
-                options: [r[2], r[3], r[4], r[5]],
-                ans: parseInt(r[6]),
-                clean: fastClean(r[1])
-            }));
 
-            // Tăng nhẹ threshold lên 0.4 để chấp nhận chữ OCR bị sai lệch nhẹ
-            searchEngine = new Fuse(store, { 
-                keys: ['clean'], 
-                threshold: 0.40, 
-                distance: 200,
-                ignoreLocation: true 
-            });
-            document.getElementById('count').innerText = `READY: ${store.length} CÂU`;
-        }
-    } catch (err) {
-        alert("Lỗi nạp cơ sở dữ liệu DB: " + err.message);
-    }
-}
+/* =========================================================
+   CAMERA
+========================================================= */
 
-function initData(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-        await loadSqlDb(event.target.result);
-    };
-    reader.readAsArrayBuffer(file);
-}
+async function initCamera() {
 
-// Xử lý tiền xử lý ảnh tối ưu (Chuyển xám + Tăng tương phản vừa phải)
-function preprocessCanvas(canvas) {
-    const ctx = canvas.getContext('2d');
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imgData.data;
+    if (!navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia) {
 
-    // Hệ số tăng tương phản (Contrast Scaling)
-    const contrast = 1.3; 
-    const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        showCameraError(
+            "Trình duyệt không hỗ trợ camera."
+        );
 
-    for (let i = 0; i < data.length; i += 4) {
-        // Chuyển mức xám Greyscale chuẩn ITU-R BT.601
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        
-        // Điều chỉnh tương phản giữ lại nét mịn (Antialiasing)
-        gray = factor * (gray - 128) + 128;
-        gray = Math.min(255, Math.max(0, gray));
-
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
-    }
-    ctx.putImageData(imgData, 0, 0);
-}
-
-async function smartCapture() {
-    if (!store.length) return alert("Vui lòng nạp file cơ sở dữ liệu SQLite trước!");
-    if (!ocrWorker) return alert("OCR chưa sẵn sàng hoặc gặp lỗi. Vui lòng kiểm tra lại kết nối mạng!");
-
-    const v = document.getElementById('video');
-    const canvas = document.getElementById('procCanvas');
-    const ctx = canvas.getContext('2d');
-    const loader = document.getElementById('loader');
-    const loaderText = document.getElementById('loaderText');
-
-    loaderText.innerText = "ĐANG ĐỌC VÀ TÌM KIẾM...";
-    loader.style.display = 'flex';
-
-    // Tính toán tỷ lệ chính xác khi video dùng object-fit: cover
-    const scaleX = v.videoWidth / v.clientWidth;
-    const scaleY = v.videoHeight / v.clientHeight;
-
-    const cropW = (v.clientWidth * 0.92) * scaleX;
-    const cropH = 90 * scaleY;
-    const cropX = (v.videoWidth - cropW) / 2;
-    const cropY = (v.videoHeight - cropH) / 2;
-
-    canvas.width = cropW;
-    canvas.height = cropH;
-
-    // Cắt ảnh theo tọa độ chuẩn xác
-    ctx.drawImage(v, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-    // Tiền xử lý tăng tương phản
-    preprocessCanvas(canvas);
-
-    try {
-        const out = await ocrWorker.recognize(canvas);
-        
-        // RegEx Unicode chuẩn: giữ lại toàn bộ chữ có dấu (Viết HOA + viết thường) và chữ số
-        let text = out.data.text
-            .replace(/[\r\n]+/g, ' ')
-            .replace(/[^\p{L}\p{N}\s]/gu, '') // \p{L}: mọi chữ cái Unicode, \p{N}: chữ số
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        document.getElementById('ocrResult').value = text;
-        execSearch(text);
-    } catch (err) { 
-        console.error("Lỗi OCR:", err); 
-    } finally {
-        loader.style.display = 'none';
-    }
-}
-
-function fastClean(s) {
-    if (!s) return "";
-    return s.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase().trim();
-}
-
-function highlightDiff(targetText, correctText) {
-    if (!targetText || !correctText) return targetText;
-    
-    const targetWords = targetText.toString().split(' ');
-    const correctWords = correctText.toString().toLowerCase();
-
-    return targetWords.map(word => {
-        const cleanWord = fastClean(word);
-        if (cleanWord && !fastClean(correctWords).includes(cleanWord)) {
-            return `<span class="diff-wrong">${word}</span>`;
-        }
-        return word;
-    }).join(' ');
-}
-
-function manualSearch() {
-    execSearch(document.getElementById('ocrResult').value);
-}
-
-function execSearch(txt) {
-    const q = fastClean(txt);
-    const box = document.getElementById('displayArea');
-    const status = document.getElementById('matchStatus');
-    if (!q) return;
-
-    const matches = searchEngine.search(q).slice(0, 3);
-    
-    if (!matches.length) {
-        status.innerText = "❌ KHÔNG KHỚP";
-        status.className = "text-[10px] font-bold text-red-500";
-        box.innerHTML = `<div class="text-center text-gray-400 py-10">Không tìm thấy câu hỏi phù hợp trong dữ liệu.</div>`;
         return;
     }
 
-    status.innerText = `✅ TÌM THẤY ${matches.length} KẾT QUẢ`;
-    status.className = "text-[10px] font-bold text-emerald-600";
+    try {
 
-    box.innerHTML = matches.map((m, idx) => {
-        const item = m.item;
-        const correctText = item.options[item.ans - 1];
+        stream =
+            await navigator.mediaDevices.getUserMedia({
 
-        return `
-            <div class="result-card ${idx === 0 ? 'best-match' : ''}">
-                <div class="flex items-start gap-3 mb-3">
-                    <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-black">#${item.id}</span>
-                    <h3 class="font-bold text-slate-800 leading-snug text-sm">${item.title}</h3>
+                video: {
+                    facingMode: {
+                        ideal: "environment"
+                    },
+
+                    width: {
+                        ideal: 1920
+                    },
+
+                    height: {
+                        ideal: 1080
+                    }
+                },
+
+                audio: false
+
+            });
+
+        video.srcObject = stream;
+
+        await video.play();
+
+    } catch (error) {
+
+        console.error("Camera error:", error);
+
+        showCameraError(
+            getCameraErrorMessage(error)
+        );
+    }
+}
+
+
+function getCameraErrorMessage(error) {
+
+    switch (error.name) {
+
+        case "NotAllowedError":
+            return "Bạn chưa cấp quyền sử dụng camera.";
+
+        case "NotFoundError":
+            return "Không tìm thấy camera.";
+
+        case "NotReadableError":
+            return "Camera đang được ứng dụng khác sử dụng.";
+
+        case "SecurityError":
+            return "Camera yêu cầu HTTPS.";
+
+        default:
+            return "Không thể mở camera: " +
+                error.message;
+    }
+}
+
+
+function showCameraError(message) {
+
+    displayArea.innerHTML = `
+        <div class="bg-red-50 text-red-600
+                    rounded-xl p-4 text-sm">
+            📷 ${escapeHTML(message)}
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   OCR
+========================================================= */
+
+async function initOCRWorker() {
+
+    if (isOCRReady && ocrWorker) {
+        return true;
+    }
+
+    ocrStatus.textContent =
+        "⏳ ĐANG KẾT NỐI OCR...";
+
+    ocrStatus.className =
+        "text-[10px] font-bold text-amber-500 ml-auto";
+
+    try {
+
+        if (!ocrWorker) {
+
+            ocrWorker =
+                await Tesseract.createWorker("vie");
+
+        }
+
+        await ocrWorker.setParameters({
+
+            /*
+             * 6 = Assume a single uniform block
+             * of text.
+             */
+            tessedit_pageseg_mode: "6",
+
+            preserve_interword_spaces: "1"
+
+        });
+
+        isOCRReady = true;
+
+        ocrStatus.textContent =
+            "⚡ OCR SẴN SÀNG";
+
+        ocrStatus.className =
+            "text-[10px] font-bold text-emerald-600 ml-auto";
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "OCR initialization failed:",
+            error
+        );
+
+        isOCRReady = false;
+
+        ocrStatus.textContent =
+            "❌ OCR LỖI - BẤM THỬ LẠI";
+
+        ocrStatus.className =
+            "text-[10px] font-bold text-red-500 ml-auto cursor-pointer";
+
+        ocrStatus.onclick = initOCRWorker;
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   DATABASE
+========================================================= */
+
+async function autoLoadDatabase() {
+
+    try {
+
+        const response =
+            await fetch(
+                "data 26 09 2026.db",
+                {
+                    cache: "no-store"
+                }
+            );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const buffer =
+            await response.arrayBuffer();
+
+        await loadSqlDb(buffer);
+
+    } catch (error) {
+
+        console.log(
+            "Không tự động tải được DB:",
+            error
+        );
+    }
+}
+
+
+async function loadSqlDb(arrayBuffer) {
+
+    try {
+
+        countEl.textContent =
+            "⏳ ĐANG NẠP DB...";
+
+        const SQL =
+            await initSqlJs({
+
+                locateFile: file =>
+                    `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+
+            });
+
+
+        const db =
+            new SQL.Database(
+                new Uint8Array(arrayBuffer)
+            );
+
+
+        const result =
+            db.exec(`
+                SELECT
+                    col_1,
+                    col_2,
+                    col_3,
+                    col_4,
+                    col_5,
+                    col_6,
+                    col_7
+                FROM data_table
+            `);
+
+
+        if (!result.length ||
+            !result[0].values.length) {
+
+            throw new Error(
+                "Bảng data_table không có dữ liệu."
+            );
+        }
+
+
+        const rows = result[0].values;
+
+
+        store = rows
+
+            .filter(row => {
+
+                return row &&
+                    row.length >= 7 &&
+                    row[0] !== null &&
+                    row[1];
+
+            })
+
+            .map(row => {
+
+                const title =
+                    String(row[1] ?? "");
+
+                const options = [
+                    row[2],
+                    row[3],
+                    row[4],
+                    row[5]
+                ].map(value =>
+                    value == null
+                        ? ""
+                        : String(value)
+                );
+
+
+                let ans =
+                    Number.parseInt(
+                        row[6],
+                        10
+                    );
+
+
+                /*
+                 * DB hiện tại được giả định:
+                 * 1 = A
+                 * 2 = B
+                 * 3 = C
+                 * 4 = D
+                 */
+                if (
+                    !Number.isInteger(ans) ||
+                    ans < 1 ||
+                    ans > 4
+                ) {
+                    ans = 0;
+                }
+
+
+                return {
+
+                    id: row[0],
+
+                    title,
+
+                    options,
+
+                    ans,
+
+                    clean:
+                        fastClean(title)
+
+                };
+
+            });
+
+
+        if (!store.length) {
+
+            throw new Error(
+                "Không tìm thấy câu hỏi hợp lệ."
+            );
+        }
+
+
+        /*
+         * Fuse search:
+         *
+         * threshold thấp hơn giúp tránh
+         * match nhầm các câu gần giống.
+         */
+        searchEngine =
+            new Fuse(store, {
+
+                keys: [
+                    {
+                        name: "clean",
+                        weight: 1
+                    }
+                ],
+
+                threshold: 0.38,
+
+                distance: 300,
+
+                ignoreLocation: true,
+
+                includeScore: true,
+
+                minMatchCharLength: 3,
+
+                shouldSort: true
+
+            });
+
+
+        countEl.textContent =
+            `READY: ${store.length.toLocaleString("vi-VN")} CÂU`;
+
+        db.close();
+
+
+    } catch (error) {
+
+        console.error(
+            "Database error:",
+            error
+        );
+
+        countEl.textContent =
+            "❌ DB LỖI";
+
+        alert(
+            "Lỗi nạp cơ sở dữ liệu:\n" +
+            error.message
+        );
+    }
+}
+
+
+/* =========================================================
+   FILE INPUT
+========================================================= */
+
+function initData(event) {
+
+    const file =
+        event.target.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+
+    if (!/\.(db|sqlite)$/i.test(file.name)) {
+
+        alert(
+            "Vui lòng chọn file .db hoặc .sqlite"
+        );
+
+        return;
+    }
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload = async e => {
+
+        try {
+
+            await loadSqlDb(
+                e.target.result
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+    };
+
+
+    reader.onerror = () => {
+
+        alert(
+            "Không thể đọc file DB."
+        );
+
+    };
+
+
+    reader.readAsArrayBuffer(file);
+}
+
+
+/* =========================================================
+   IMAGE PROCESSING
+========================================================= */
+
+function preprocessCanvas(canvas) {
+
+    const ctx =
+        canvas.getContext("2d", {
+            willReadFrequently: true
+        });
+
+
+    const image =
+        ctx.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+    const data =
+        image.data;
+
+
+    /*
+     * Contrast vừa phải.
+     *
+     * Không threshold quá mạnh vì:
+     * - chữ tiếng Việt có dấu
+     * - antialiasing
+     * - font nhỏ
+     */
+
+    const contrast = 1.35;
+
+    const factor =
+        (259 * (contrast + 255)) /
+        (255 * (259 - contrast));
+
+
+    for (
+        let i = 0;
+        i < data.length;
+        i += 4
+    ) {
+
+        let gray =
+            0.299 * data[i] +
+            0.587 * data[i + 1] +
+            0.114 * data[i + 2];
+
+
+        gray =
+            factor *
+            (gray - 128) +
+            128;
+
+
+        gray =
+            Math.max(
+                0,
+                Math.min(
+                    255,
+                    gray
+                )
+            );
+
+
+        data[i] =
+            gray;
+
+        data[i + 1] =
+            gray;
+
+        data[i + 2] =
+            gray;
+    }
+
+
+    ctx.putImageData(
+        image,
+        0,
+        0
+    );
+}
+
+
+/* =========================================================
+   CAMERA CROP - FIX OBJECT-FIT:COVER
+========================================================= */
+
+function calculateCoverCrop(
+    video,
+    sourceWidth,
+    sourceHeight
+) {
+
+    const videoWidth =
+        video.videoWidth;
+
+    const videoHeight =
+        video.videoHeight;
+
+
+    const displayWidth =
+        video.clientWidth;
+
+    const displayHeight =
+        video.clientHeight;
+
+
+    /*
+     * object-fit: cover dùng MỘT scale.
+     */
+
+    const scale =
+        Math.max(
+            displayWidth / videoWidth,
+            displayHeight / videoHeight
+        );
+
+
+    /*
+     * Kích thước ảnh thật đang được
+     * hiển thị trên màn hình.
+     */
+
+    const renderedWidth =
+        videoWidth * scale;
+
+    const renderedHeight =
+        videoHeight * scale;
+
+
+    /*
+     * Phần ảnh bị cắt bởi object-fit:cover.
+     */
+
+    const offsetX =
+        (renderedWidth -
+            displayWidth) / 2;
+
+    const offsetY =
+        (renderedHeight -
+            displayHeight) / 2;
+
+
+    /*
+     * Vị trí vùng scan trên màn hình.
+     */
+
+    const overlayWidth =
+        displayWidth * 0.92;
+
+    const overlayHeight =
+        115;
+
+
+    const overlayLeft =
+        (displayWidth -
+            overlayWidth) / 2;
+
+    const overlayTop =
+        (displayHeight -
+            overlayHeight) / 2;
+
+
+    /*
+     * Chuyển từ tọa độ màn hình
+     * về tọa độ ảnh camera thật.
+     */
+
+    const sx =
+        (overlayLeft +
+            offsetX) / scale;
+
+    const sy =
+        (overlayTop +
+            offsetY) / scale;
+
+
+    const sw =
+        overlayWidth / scale;
+
+    const sh =
+        overlayHeight / scale;
+
+
+    return {
+
+        x: Math.max(
+            0,
+            Math.min(
+                videoWidth - 1,
+                sx
+            )
+        ),
+
+        y: Math.max(
+            0,
+            Math.min(
+                videoHeight - 1,
+                sy
+            )
+        ),
+
+        width: Math.min(
+            sw,
+            videoWidth - sx
+        ),
+
+        height: Math.min(
+            sh,
+            videoHeight - sy
+        )
+
+    };
+}
+
+
+/* =========================================================
+   OCR CAPTURE
+========================================================= */
+
+async function smartCapture() {
+
+    /*
+     * Chống chạy OCR song song.
+     */
+
+    if (isOCRBusy) {
+        return;
+    }
+
+
+    if (!store.length ||
+        !searchEngine) {
+
+        alert(
+            "Vui lòng nạp file cơ sở dữ liệu SQLite trước!"
+        );
+
+        return;
+    }
+
+
+    if (!isOCRReady ||
+        !ocrWorker) {
+
+        const ready =
+            await initOCRWorker();
+
+        if (!ready) {
+
+            alert(
+                "OCR chưa sẵn sàng."
+            );
+
+            return;
+        }
+    }
+
+
+    if (
+        !video.videoWidth ||
+        !video.videoHeight
+    ) {
+
+        alert(
+            "Camera chưa sẵn sàng."
+        );
+
+        return;
+    }
+
+
+    isOCRBusy = true;
+
+    btnAction.classList.add(
+        "disabled-button"
+    );
+
+    loaderText.textContent =
+        "ĐANG CHỤP ẢNH...";
+
+    loader.style.display =
+        "flex";
+
+
+    try {
+
+        const crop =
+            calculateCoverCrop(
+                video,
+                video.videoWidth,
+                video.videoHeight
+            );
+
+
+        /*
+         * Scale output lên để OCR dễ đọc hơn.
+         */
+
+        const outputScale = 2;
+
+
+        canvas.width =
+            Math.round(
+                crop.width *
+                outputScale
+            );
+
+
+        canvas.height =
+            Math.round(
+                crop.height *
+                outputScale
+            );
+
+
+        const ctx =
+            canvas.getContext(
+                "2d",
+                {
+                    willReadFrequently: true
+                }
+            );
+
+
+        ctx.imageSmoothingEnabled =
+            true;
+
+
+        ctx.imageSmoothingQuality =
+            "high";
+
+
+        ctx.drawImage(
+
+            video,
+
+            crop.x,
+            crop.y,
+            crop.width,
+            crop.height,
+
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        /*
+         * Preprocess
+         */
+
+        loaderText.textContent =
+            "ĐANG XỬ LÝ ẢNH...";
+
+        preprocessCanvas(canvas);
+
+
+        /*
+         * OCR
+         */
+
+        loaderText.textContent =
+            "ĐANG NHẬN DIỆN CHỮ...";
+
+
+        const result =
+            await ocrWorker.recognize(
+                canvas
+            );
+
+
+        let text =
+            normalizeOCRText(
+                result?.data?.text || ""
+            );
+
+
+        lastOCRText =
+            text;
+
+
+        ocrResult.value =
+            text;
+
+
+        if (text) {
+
+            loaderText.textContent =
+                "ĐANG TÌM CÂU HỎI...";
+
+            execSearch(text);
+
+        } else {
+
+            matchStatus.textContent =
+                "⚠️ KHÔNG ĐỌC ĐƯỢC";
+
+            matchStatus.className =
+                "text-[10px] font-bold text-amber-500";
+
+            displayArea.innerHTML = `
+                <div class="text-center
+                            text-gray-400 py-10">
+
+                    Không nhận diện được
+                    nội dung trong vùng quét.
+
                 </div>
-                <div class="space-y-1">
-                    ${item.options.map((opt, i) => {
-                        if (!opt) return '';
-                        const isCorrect = (i + 1 === item.ans);
-                        const displayContent = isCorrect ? opt : highlightDiff(opt, correctText);
-                        
-                        return `
-                            <div class="ans-item ${isCorrect ? 'is-true' : 'is-false'}">
-                                <span class="inline-block w-5">${isCorrect ? '●' : '○'}</span> ${displayContent}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                ${idx === 0 ? '<div class="mt-3 text-[9px] font-bold text-emerald-600 text-right uppercase tracking-widest">Khớp nhiều nhất</div>' : ''}
+            `;
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "OCR error:",
+            error
+        );
+
+
+        matchStatus.textContent =
+            "❌ OCR LỖI";
+
+
+        displayArea.innerHTML = `
+            <div class="bg-red-50
+                        text-red-600
+                        rounded-xl p-4 text-sm">
+
+                OCR gặp lỗi:
+                ${escapeHTML(error.message)}
+
             </div>
         `;
-    }).join('');
+
+
+    } finally {
+
+        loader.style.display =
+            "none";
+
+        btnAction.classList.remove(
+            "disabled-button"
+        );
+
+        isOCRBusy = false;
+    }
 }
-</script>
-</body>
-</html>
+
+
+/* =========================================================
+   OCR TEXT NORMALIZATION
+========================================================= */
+
+function normalizeOCRText(text) {
+
+    if (!text) {
+        return "";
+    }
+
+
+    return text
+
+        /*
+         * newline -> space
+         */
+        .replace(/[\r\n]+/g, " ")
+
+        /*
+         * Một số OCR trả về ký tự lạ.
+         * Giữ Unicode letters/numbers.
+         */
+        .replace(
+            /[^\p{L}\p{N}\s.,?!:;'"()\-]/gu,
+            " "
+        )
+
+        /*
+         * Chuẩn hóa khoảng trắng
+         */
+        .replace(/\s+/g, " ")
+
+        .trim();
+}
+
+
+/* =========================================================
+   SEARCH NORMALIZATION
+========================================================= */
+
+function fastClean(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+
+    return String(value)
+
+        .normalize("NFD")
+
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        )
+
+        .replace(
+            /đ/gi,
+            "d"
+        )
+
+        .toLowerCase()
+
+        .replace(
+            /[^\p{L}\p{N}\s]/gu,
+            " "
+        )
+
+        .replace(
+            /\s+/g,
+            " "
+        )
+
+        .trim();
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+function manualSearch() {
+
+    const text =
+        ocrResult.value;
+
+    execSearch(text);
+}
+
+
+function execSearch(text) {
+
+    if (
+        !searchEngine ||
+        !store.length
+    ) {
+
+        return;
+    }
+
+
+    const query =
+        fastClean(text);
+
+
+    if (!query) {
+
+        matchStatus.textContent =
+            "";
+
+        return;
+    }
+
+
+    /*
+     * Không tìm query quá ngắn vì dễ match nhầm.
+     */
+
+    if (query.length < 3) {
+
+        matchStatus.textContent =
+            "⚠️ TỪ KHÓA QUÁ NGẮN";
+
+        matchStatus.className =
+            "text-[10px] font-bold text-amber-500";
+
+        r
